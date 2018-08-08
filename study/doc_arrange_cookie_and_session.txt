@@ -1,0 +1,39 @@
+HTTP는 기본적으로 상태 값을 가지지 앟는 프로토콜 (stateless protocol)
+상태 값을 저장하기 위해 나온 것이 cookie 와 session
+
+cookie
+쿠키는 HTTP header 부분에 포함되며 key, value 쌍으로 표현
+웹 서버로부터 쿠키를 받은 웹 브라우저는 같은 웹 서버에 접속할 때 전에 받았던 쿠키정보를 HTTP header에 넣어 보내므로 웹 브라우저에서는 헤더에 들어 있는 쿠키 값을 확인하여 현재 상태에 대한 내용을 알 수 있다.
+
+session
+세션은 웹 브라우저가 서버에 접속 시 웹 브라우저에 부여하는 ID 값으로 세션ID 라고 부르며 HTTP header의 쿠키를 이용해 생성
+
+즉, 서버는 메모리에 세션ID를 저장하여 클라이언트가 재접속하면 쿠키에 저장된 세션ID로 요청하게 되고 서버에서는 해당 세션ID를 이용하여 클라이언트를 구분.
+쿠키와세션은 만료기간을 설정하여 일정 시간이 지나면 자동으로 삭제되게 관리
+
+#쿠키 정보 접근
+@app.route('/')
+def index():
+    username = request.cookies.get('username')
+
+#쿠키 값 설정
+@app.route('/')
+def index():
+    resp = make_response(render_template('index.html'))
+    resp.set_cookie('username', 'flask')
+    return resp
+
+
+플라스크는 기본적인 세션을 제공하지만 일반적인 서버 측(server-side) 세션이 아닌 암호화된 쿠키 형태로 제공
+이 기본 세션을 사용하려면 플라스크 애플리케이션 객체에 암호화 키(secrete key)를 설정
+ex)
+app.secret_key = '######'
+
+이 암호화 키를 설정하면 기본적으로 암호화 쿠키 기반의 플라스크 세션을 사용할 수 있고, session 객체의 permanent 속성을 True로 설정하고 permanent_session_lifetime 값을 초 단위로 설정하면 세션의 만료 시간을 설정
+permanent 속성은 기본적으로 False이며 브라우저가 닫힐 때 세션이 종료
+session 객체는 dict 타입으로 원하는 데이터를 key=value 쌍으로 관리
+
+마이크로 프레임워크인 플라스크에서 서버 측 세션을 사용하려면 직접 구현
+이를 위해 flask.seesion.SessionInterface 제공
+
+요청을 처리하기 전에 호출되는 open_session() 메서드와 응답 처리 후에 호출되는 save_session() 메서드를 구현하면 된다.

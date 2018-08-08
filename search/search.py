@@ -1,6 +1,6 @@
 import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, \
-     abort, render_template, flash
+     abort, render_template, flash, make_response
 from contextlib import closing
 
 # configuration
@@ -30,7 +30,6 @@ def init_db():
 
 if __name__ == '__main__':
     app.run()
-
 
 @app.before_request
 def before_request():
@@ -76,8 +75,24 @@ def login():
 
 
 @app.route('/logout')
-def  logout():
+def logout():
     session.pop('logged_in', None)
     flash('You were logged out')
     return redirect(url_for('show_entries'))
 
+# def index():
+#     response = make_response(render_template('index.html', foo=42))
+#     response.headers['X-Parachutes'] = 'paracutes are cool'
+#     return response
+
+# #쿠키 정보 접근
+# @app.route('/')
+# def index():
+#     username = request.cookies.get('username')
+#
+# #쿠키 값 설정
+# @app.route('/')
+# def index():
+#     resp = make_response(render_template('index.html'))
+#     resp.set_cookie('username', 'flask')
+#     return resp

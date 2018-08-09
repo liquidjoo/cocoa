@@ -1,0 +1,26 @@
+### 2018. 08. 09
+
+플라스크는 HTTP 오류 코드에 대해 사용자 지정으로 처리할 수 있는 방식을 제공
+errorhandler 데코레이터를 사용하면 HTTP 오류가 나오는 페이지를 정의할 수 있다.
+
+ex)
+@app.errorhandler(404)
+def page_not_found(error):
+    return render_template('page_not_found.html'), 404
+
+
+오류가 발생하거나 특정 요청에 대해 어떤 기록을 남기고 싶을 때는 로깅을 하면 된다.
+플라스크에서는 애플리케이션 객첼르 생성한 후 logger 속성을 이용해서 특정 레벨에 따라 로깅할 수 있다.
+
+app.logger.debug('error message')
+app.logger.warning('error message')
+app.logger.error('error message')
+
+
+
+ex)
+@app.errorhandler(404)
+def page_not_found(error):
+    app.logger.error(error)
+    return render_template('page_not_found.html'), 404
+

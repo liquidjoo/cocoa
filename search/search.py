@@ -96,3 +96,12 @@ def logout():
 #     resp = make_response(render_template('index.html'))
 #     resp.set_cookie('username', 'flask')
 #     return resp
+
+# @app.errorhandler(404)
+# def page_not_found(error):
+#     return render_template('page_not_found.html'), 404
+
+
+# app.logger.debug('error message')
+# app.logger.warning('error message')
+# app.logger.error('error message')

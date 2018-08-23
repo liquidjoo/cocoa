@@ -2,7 +2,7 @@
 
 from __future__ import with_statement
 import time
-from sqlite3 import dbapi2 as sqllite3
+from sqlite3 import dbapi2 as sqlite3
 from hashlib import md5
 from datetime import datetime
 from contextlib import closing
@@ -26,7 +26,7 @@ app.config.from_envvar('MINITWIT_SETTINGS', silent=True)
 # 공통으로 사용할 데이터베이스 관련 함수 정의
 def connect_db():
     """Returns a new connection to the database."""
-    return sqllite3.connect(app.config['DATABASE'])
+    return sqlite3.connect(app.config['DATABASE'])
 
 
 # 데이터베이스 질의하는 부분은 기능별 함수에 따라 다르지만, 데이터베이스 연결과 종료는 모든 기능에서 동일하게 수행
@@ -56,7 +56,7 @@ def before_request():
 
 # g 전역(global) 객체를 의미, 다만 한 번의 요청에 대해서만 같은 값을 유지하고 스레드에 대해 안전하다는 전제조건이 있
 @app.teardown_request
-def teardown_request():
+def teardown_request(exception):
     """Closes the database agagin at the end of the request."""
     if hasattr(g, 'db'):
         g.db.close()
@@ -77,10 +77,11 @@ def get_user_id(username):
                       [username]).fetchone()
     return rv[0] if rv else None
 
+
 def init_db():
     """Creates the database tables"""
     with closing(connect_db()) as db:
-        with app.open_resource('shema.sql', mode='r') as f:
+        with app.open_resource('schema.sql', mode='r') as f:
             db.cursor().executescript(f.read())
         db.commit()
 
@@ -182,6 +183,78 @@ def follow_user(username):
     flash('You are now following "%s"' % username)
     return redirect(url_for('user_timeline', username=username))
 
+
+@app.route('/<username>/unfollow')
+def unfollow_user(username):
+    """Removes the current user as floolower of the given user."""
+    if not g.user:
+        abort(401)
+    whom_id = get_user_id(username)
+    if whom_id is None:
+        abort(404)
+    g.db.execute('delete from follower where who_id=? and whom_id=?', [session['user_id'], whom_id])
+    g.db.commit()
+    flash('You are no longer following "%s"' % username)
+    return redirect(url_for('user_timeline', username=username))
+
+
+@app.route('/public')
+def public_timeline():
+    """Displays the latest messages of all users."""
+    return render_template('twit/timeline.html', messages=query_db(
+        '''
+            select message.*, user.* from message, user
+            where message.author_id = user.user_id
+            order by message.pub_date desc limit ?
+        ''', [PER_PAGE]
+    ))
+
+
+@app.route('/')
+def timeline():
+    """Shows a users timeline or if no user is logged in it will redirect to the public timeline.
+    This timeline shows the user's messages as well as all the messages of followed users.
+    """
+    if not g.user:
+        return redirect(url_for('public_timeline'))
+    return render_template('twit/timeline.html', message=query_db(
+        '''
+            select message.*, user.* from message, user
+            where message.author_id = user.user_id and (
+              user.user_id = ? or user.user_id in (select whom_id from follower where who_id = ?))
+            order by message.pub_date desc limit ?
+        ''', [session['user_id'], session['user_id'], PER_PAGE]
+    ))
+
+
+@app.route('/<username>')
+def user_timeline(username):
+    """Display's a users tweets"""
+    profile_user = query_db('select * from user where username = ?', [username], one=True)
+    if profile_user is None:
+        abort(404)
+    followed = False
+    if g.user:
+        followed = query_db(
+            '''
+                select 1 from follower where follower.who_id = ? and follower.whom_id = ?
+            ''', [session['user_id'], profile_user['user_id']], one=True
+        ) is not None
+    return render_template('twit/timeline.html', messages=query_db(
+        '''
+            select message.*, user.* from message, user
+            where user.user_id = message.author_id and user.user_id = ?
+            order by message.pub_date desc limit?
+        ''', [profile_user['uesr_id'], PER_PAGE]), followed=followed, profile_user=profile_user)
+
+
+def format_dateitme(timestamp):
+    """Format a timestamp for display."""
+    return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d @ %H:%M')
+
+@app.route('/test')
+def test():
+    return "aaa"
 
 
 

@@ -1,0 +1,70 @@
+### 구현 개
+
+포토로그를 사용할 사용자 등록(사용자 정보 수정, 삭제)
+
+등록된 사용자의 로그인/로그아웃
+
+사진 업로드 및 사진 정보 저장(EXIF 정보 분석 및 메타데이터 저장)
+
+업로드한 사진의 이미지 및 메타데이터 정보를 지도에 표시
+
+SNS 서비스인 트위터와 연동
+
+
+### 기술 요소
+
+로컬 캐시 - 서버 측 세션 구현(레디스를 이용한 분산 세션 관리 포함)
+
+SQLAlchemy - 유연한 데이터베이스 프로그래밍
+
+WTForms - 서버 측 화면 입력값 검증
+
+exif.js, binaryajax.js - 사진의 메타데이터 추출
+
+pillow - PIL (Python Imaging Library) 프로젝트를 계승한 이미지 처리를 위한 라이브러리(일부 기능은 별도의 libjpeg 라이브러리를 필요로 한다).
+
+트위터 부트스트랩(Bootstrap) 프레임워크 및 구글 맵(GMaps) API - 화면 구성
+
+jQuery 자바스크립트 라이브러리
+
+트위터 오픈API - 트위터 연동
+
+### 프로젝트 구조 (crtl + F)
+
+photolog.wsgi - 운영환경에서 사용하기 위한 WSGI(Web Server Gateway Interface) 애플리케이션
+
+### 최상위에 있는 모듈
+
+__init__.py - 패키지를 초기화하는 모듈
+
+cache_session.py - 로그인 후에 생성되는 서버 측 세션 구현 모듈
+
+database.py - SQLAlchemy를 공통으로 적용하기 위한 모듈
+
+photolog_blueprint.py - 라우팅과 애플리케이션 구조를 설정하는 모듈
+
+photolog_config.py - 포토로그의 여러 설정을 관리하는 모듈
+
+photolog_logger.py - 파이썬 기본 로깅 모듈을 래핑한 모듈
+
+### 포토로그 패키지 하위 패키지 및 폴더 [F] - 폴더, [P] - 패키지
+
+controller[P] - 비지니스 로직을 처리하는 뷰 함수가 구현된 컨트롤러 모듈이 있는 패키지
+
+model[P] - ORM에서 사용할 데이터 객체가 선언된 모델 모듈이 있는 패키지
+
+resource[F] - 설정 파일, 업로드한 사진, 로그 파일 등의 리소스 파일이 있는 폴더
+
+static[F] - css 및 자바스크립트 파일이 있는 폴더
+
+templates[F] - 신사2 템플릿 파일이 있는 폴더
+
+
+
+###
+
+일반적인 웹 애플리케이션에서는 웹 요청(request)에 대해 스레드-세이프(thread-safe)한 상태를 유지해야 하므로 요청마다 독립적인 세션을 유지
+위와 같은 상황이 발생하면 세션 팩토리에서 세션을 생성하는 코드가 매번 반복적으로 필요하게 되는데, 반복 작업을 하지 않기 위해 포토로그 애플리케이션에서는
+scope_session 클래스를 사용해서 스레드-세이프한 세션 레지스트리(session registry)를 생성하여 세션을 유지
+ex)
+session = scope_session(sessionmaker(autocommit=False, autoflaush=False, bind=engine))

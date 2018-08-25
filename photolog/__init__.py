@@ -38,4 +38,22 @@ def create_app(config_filepath='resource/config.cfg'):
 
     # 기본 설정은 PhotologConfig 객체에 정의되있고 운영 환경 또는 기본 설정을 변경을 하려면
     # 실행 환경변수인 PHOTOLOG_SETTINGS에 변경할 설정을 담고 있는 파일 경로를 설정
-    
+    from photolog.photolog_config import PhotologConfig
+    photolog_app.config.from_object(PhotologConfig)
+    # photolog_app.config.from_pyfile(config_filepath, silent=True)
+    print_settings(photolog_app.config.items())
+
+
+    # 로그 초기화
+    from photolog.photolog_logger import Log
+    log_filepath = os.path.join(photolog_app.root_path,
+                                photolog_app.config['LOG_FILE_PATH'])
+    Log.init(log_filepath=log_filepath)
+
+    # 데이터베이스 처리
+    from photolog.database import DBManager
+    db_filepath = os.path.join(photolog_app.root_path,
+                               photolog_app.config['DB_FILE_PATH'])
+    db_url = photolog_app.config['DB_URL'] + db_filepath
+    DBManager.__init__(db_url, eval(photolog_app.config['DB_LOG_FLAG']))
+    DBManager.init_db()

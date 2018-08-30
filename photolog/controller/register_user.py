@@ -10,9 +10,10 @@ from photolog.photolog_logger import Log
 from photolog.photolog_blueprint import photolog
 from photolog.database import dao
 from photolog.model.user import User
-# from photolog.controller.login import
+from photolog.controller.login import login_required
 
 
+# blueprint를 사용해서 라우트 등록 시에 templates, static 폴서 설정 확
 @photolog.route('/user/regist')
 def register_user_form():
     """포토로그 사용자 등록을 위한 폼을 제공하는 함수"""
@@ -20,6 +21,179 @@ def register_user_form():
     form = RegisterForm(request.form)
 
     return render_template('../photolog/templates/regist.html', form=form)
+
+
+@photolog.route('/user/regist', methods=['POST'])
+def register_user():
+    form = RegisterForm(request.form)
+
+    if form.validate():
+        username = form.username.data
+        email = form.email.data
+        password = form.password.data
+
+        try:
+            user = User(
+                username=username,
+                email=email,
+                password=generate_password_hash(password)
+            )
+            dao.add(user)
+            dao.commit()
+
+            Log.debug(user)
+
+        except Exception as e:
+            error = "DB error occurs: " + str(e)
+            Log.error(error)
+            dao.rollback()
+            raise e
+
+        else:
+            return redirect(url_for('.login', register_user=username))
+
+    else:
+        return render_template('../photolog/templates/regist.html', form=form)
+
+
+@photolog.route('/user/<username>')
+@login_required
+def update_user_form(username):
+    """
+    포토로그 사용자 정보 수정 화면을 보여주는 함수
+    :param username: 유저정보
+    :return: html
+    """
+    current_user = __get_user(username)
+    form = UpdateForm(request.form, current_user)
+
+    return render_template('../photolog/templates/regist.html',
+                           user=current_user,
+                           form=form)
+
+
+@photolog.route('/user/<username>', methods=['POST'])
+@login_required
+def update_user(username):
+    """
+    포토로그 사용자 정보 수정을 위한 함수
+    :param username: 유저정보
+    :return: html
+    """
+
+    current_user = __get_user(username)
+    form = UpdateForm(request.form)
+
+    if form.validate():
+        email = form.email.data
+        password = form.password.data
+
+        try:
+            current_user.email = email
+            current_user.password = generate_password_hash(password)
+            dao.commit()
+        except Exception as e:
+            dao.rollback()
+            Log.error(str(e))
+            raise e
+        else:
+            # 변경된 사용자 정보를 세션에 반영
+            session['user_info'].email = current_user.email
+            session['user_info'].password = current_user.password
+            session['user_info'].password_confirm = current_user.password
+
+            # 성공적으로 사용자 등록이 되면, 로그인 화면으로 이동
+            return redirect(url_for('.login', update_user=username))
+
+    else:
+        return render_template('../photolog/templates/regist.html',
+                               user=current_user,
+                               form=form)
+
+
+def __get_user(username):
+    try:
+        current_user = dao.query(User).filter_by(username=username).first()
+
+        Log.debug(current_user)
+        return current_user
+
+    except Exception as e:
+        Log.error(str(e))
+        raise e
+
+
+@photolog.route('/user/unregist')
+@login_required
+def unregist():
+    user_id = session['user_info'].id
+
+    try:
+        user = dao.query(User).filter_by(id=user_id).first()
+        Log.info("unregist: "+user.username)
+
+        if user.id == user_id:
+            dao.delete(user)
+            # 업로드된 사진 파일 삭제
+            try:
+                update_folder = \
+                    os.path.join(current_app.root_path,
+                                 current_app.config['UPLOAD_FOLDER'])
+                __delete_files(update_folder, user.username)
+
+            except Exception as e:
+                Log.error("파일 삭제에 실패했습니다. : %s" + str(e))
+
+            dao.commit()
+
+        else:
+            Log.error("존재하지 않는 사용자의 탈퇴시도: %d", user_id)
+            raise Exception
+    except Exception as e:
+        Log.error(str(e))
+        dao.rollback()
+        raise e
+
+    return redirect(url_for('.logout'))
+
+
+def __delete_files(filepath, username):
+    """
+    :param filepath:
+    :param username:
+    :return:
+    """
+    import glob
+    """ glob = 유닉스 셀 법칙을 사용해 패턴에 매칭하는 파일 이름을 찻는다."""
+
+    # 원본 이미지 파일 제거
+    del_filepath_rule = filepath + username + "_*"
+    files = glob.glob(del_filepath_rule)
+
+    for f in files:
+        Log.debug(f)
+        os.remove(f)
+
+    # 썸네일 제거
+    del_filepath_rule = filepath + "thumb_" + username + "_*"
+    files = glob.glob(del_filepath_rule)
+
+    for f in files:
+        Log.debug(f)
+        os.remove(f)
+
+
+@photolog.route('/user/check_name', methods=['POST'])
+def check_name():
+
+    username = request.json['username']
+    # DB 에서 username 중복 확인
+    if __get_user(username):
+        return jsonify(result=False)
+    else:
+        return jsonify(result=True)
+
+
 
 
 

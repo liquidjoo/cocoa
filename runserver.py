@@ -6,4 +6,4 @@ if __name__ == '__main__':
     print("starting test server...")
 
 
-    application.run()
+    application.run(debug=True)

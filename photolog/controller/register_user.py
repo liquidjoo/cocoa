@@ -13,6 +13,10 @@ from photolog.model.user import User
 from photolog.controller.login import login_required
 
 
+@photolog.route('/test')
+def test():
+    return "test"
+
 # blueprint를 사용해서 라우트 등록 시에 templates, static 폴서 설정 확
 @photolog.route('/user/regist')
 def register_user_form():
@@ -20,7 +24,8 @@ def register_user_form():
 
     form = RegisterForm(request.form)
 
-    return render_template('../photolog/templates/regist.html', form=form)
+    # return render_template('../photolog/templates/regist.html', form=form)
+    return render_template('regist.html', form=form)
 
 
 @photolog.route('/user/regist', methods=['POST'])
